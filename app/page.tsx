@@ -82,14 +82,11 @@ type Dossier = {
 };
 
 const tabs = [
-  ['cadre', 'Cadre'],
-  ['situation', 'Situation'],
+  ['cadre', 'Le TP'],
   ['techniques', 'Techniques'],
   ['fiches', 'Fiches techniques'],
-  ['hygiene', 'Hygiène'],
   ['organisation', 'Ordonnancement'],
-  ['croquis', 'Croquis'],
-  ['bilan', 'Bilan'],
+  ['bilan', 'Finaliser'],
 ] as const;
 type TabId = (typeof tabs)[number][0];
 
@@ -113,7 +110,8 @@ const makeDossier = (formation: Formation): Dossier => ({
   schedule: Array.from({ length: 6 }, (_, index) => emptyScheduleRow(index + 1)),
   sketches: '', success: '', difficulty: '', nextGoal: '', tutorFeedback: '',
 });
-const storageKey = 'trame-dossier-tp-mfr-v1';
+const storageKey = 'trame-dossier-tp-mfr-v2';
+const legacyStorageKey = 'trame-dossier-tp-mfr-v1';
 
 function Field({ label, value, onChange, placeholder, wide }: {
   label: string; value: string; onChange: (value: string) => void; placeholder?: string; wide?: boolean;
@@ -139,10 +137,9 @@ export default function Home() {
   const [techniqueSearch, setTechniqueSearch] = useState('');
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState('');
-  const [printMode, setPrintMode] = useState(false);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(storageKey);
+    const raw = window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey);
     if (!raw) return;
     try {
       const restored = JSON.parse(raw) as Dossier;
@@ -194,7 +191,7 @@ export default function Home() {
     void Promise.resolve(context.registerTool({
       name: 'navigate_practical_dossier',
       title: 'Ouvrir une partie du dossier',
-      description: 'Affiche l’une des huit parties du dossier actuellement ouvert.',
+      description: 'Affiche l’une des cinq parties du dossier actuellement ouvert.',
       inputSchema: {
         type: 'object',
         properties: { section: { type: 'string', enum: tabs.map(([id]) => id) } },
@@ -211,17 +208,6 @@ export default function Home() {
     }, { signal: lifecycle.signal })).catch(reportError);
 
     return () => lifecycle.abort();
-  }, []);
-
-  useEffect(() => {
-    const beforePrint = () => setPrintMode(true);
-    const afterPrint = () => setPrintMode(false);
-    window.addEventListener('beforeprint', beforePrint);
-    window.addEventListener('afterprint', afterPrint);
-    return () => {
-      window.removeEventListener('beforeprint', beforePrint);
-      window.removeEventListener('afterprint', afterPrint);
-    };
   }, []);
 
   const groups = useMemo(() => {
@@ -254,8 +240,14 @@ export default function Home() {
   const updateTechniqueStatus = (name: string, status: TechniqueStatus) => setDossier((current) => ({
     ...current, selectedTechniques: current.selectedTechniques.map((item) => item.name === name ? { ...item, status } : item),
   }));
-  const updateProduction = (id: string, key: keyof Production, value: string) => update('productions', dossier.productions.map((item) => item.id === id ? { ...item, [key]: value } : item));
-  const updateSchedule = (id: string, key: keyof ScheduleRow, value: string) => update('schedule', dossier.schedule.map((item) => item.id === id ? { ...item, [key]: value } : item));
+  const updateProduction = (id: string, key: keyof Production, value: string) => setDossier((current) => ({
+    ...current,
+    productions: current.productions.map((item) => item.id === id ? { ...item, [key]: value } : item),
+  }));
+  const updateSchedule = (id: string, key: keyof ScheduleRow, value: string) => setDossier((current) => ({
+    ...current,
+    schedule: current.schedule.map((item) => item.id === id ? { ...item, [key]: value } : item),
+  }));
 
   const exportDossier = () => {
     const blob = new Blob([JSON.stringify(dossier, null, 2)], { type: 'application/json' });
@@ -282,7 +274,10 @@ export default function Home() {
   };
   const resetDossier = () => {
     if (!window.confirm('Créer un dossier vide et effacer les données enregistrées sur cet appareil ?')) return;
-    const formation = dossier.formation; window.localStorage.removeItem(storageKey); setDossier(makeDossier(formation)); setActiveTab('cadre');
+    const formation = dossier.formation;
+    window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(legacyStorageKey);
+    setDossier(makeDossier(formation)); setActiveTab('cadre');
   };
 
   if (!started) {
@@ -303,9 +298,9 @@ export default function Home() {
       <div className="header-actions">
         <span className={saved ? 'save-state visible' : 'save-state'}><Save size={14} /> Enregistré</span>
         {notice && <span className="header-notice" role="status">{notice}</span>}
-        <label className="ghost-button import-button"><Upload size={17} /> Importer un dossier<input type="file" accept=".json,application/json" onChange={importDossier} /></label>
-        <button className="ghost-button" onClick={exportDossier}><Download size={17} /> Sauvegarder</button>
-        <button className="ghost-button" onClick={() => window.print()}><Printer size={17} /> Imprimer</button>
+        <label className="ghost-button import-button"><Upload size={17} /> Reprendre un brouillon<input type="file" accept=".json,application/json" onChange={importDossier} /></label>
+        <button className="ghost-button" onClick={exportDossier}><Download size={17} /> Sauvegarder le brouillon</button>
+        <button className="primary-button" onClick={() => window.print()}><Printer size={17} /> Exporter tout le dossier</button>
       </div>
     </header>
     <div className="workspace">
@@ -320,86 +315,70 @@ export default function Home() {
       <section className="document-surface">
         <div className="document-topline"><label>Formation<select value={dossier.formation} onChange={(event) => switchFormation(event.target.value as Formation)}><option value="cuisine">BP Arts de la cuisine</option><option value="service">BP Arts du service</option></select></label><span>Dossier {dossier.dossierNumber || 'sans numéro'}</span></div>
 
-        {(printMode || activeTab === 'cadre') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 1" title="Cadre de la séance" intro="Renseigner uniquement les éléments qui situent cette séance dans le plan de formation." />
-          <div className="field-grid">
-            <Field label="Numéro du dossier" value={dossier.dossierNumber} onChange={(v) => update('dossierNumber', v)} placeholder="Exemple 03" />
-            <Field label="Auteur ou équipe" value={dossier.author} onChange={(v) => update('author', v)} />
-            <Field label="Diplôme" value={dossier.diploma} onChange={(v) => update('diploma', v)} />
-            <Field label="Groupe" value={dossier.group} onChange={(v) => update('group', v)} />
-            <Field label="Période d'alternance" value={dossier.period} onChange={(v) => update('period', v)} />
-            <Field label="Dates de la session" value={dossier.sessionDates} onChange={(v) => update('sessionDates', v)} />
+        <div className={`section-content ${activeTab === 'cadre' ? 'is-active' : ''}`}>
+          <SectionHeading eyebrow="1 · Le TP" title="Préparer le dossier" intro="Les informations indispensables pour contextualiser la séance et donner le dossier aux apprentis." />
+          <div className="field-grid essential-grid">
+            <Field label="Numéro du dossier" value={dossier.dossierNumber} onChange={(v) => update('dossierNumber', v)} placeholder="Exemple : 02" />
+            <Field label="Dates de la session" value={dossier.sessionDates} onChange={(v) => update('sessionDates', v)} placeholder="Exemple : du 14 au 19 septembre" />
             <Field wide label="Thème de la session" value={dossier.theme} onChange={(v) => update('theme', v)} />
-            <div className="menu-editor">
-              <div className="menu-editor-title"><UtensilsCrossed size={22} /><div><strong>Menu de la séance</strong><span>À adapter librement au thème et aux productions retenues</span></div></div>
-              <textarea value={dossier.menu} onChange={(event) => update('menu', event.target.value)} rows={9} placeholder={'ENTRÉE\n\nPLAT PRINCIPAL ET GARNITURES\n\nFROMAGES\n\nDESSERT\n\nBOISSONS OU ACCORDS'} />
-            </div>
-            <Field wide label="Participant ou apprenti" value={dossier.participant} onChange={(v) => update('participant', v)} />
           </div>
-        </div>}
+          <TextArea label="Situation professionnelle issue du plan de formation" value={dossier.situation} onChange={(v) => update('situation', v)} rows={6} placeholder="Copier ici la situation du plan de formation." />
+          <div className="menu-editor">
+            <div className="menu-editor-title"><UtensilsCrossed size={22} /><div><strong>Menu du TP</strong><span>Ce texte reste enregistré pendant toute la préparation.</span></div></div>
+            <textarea value={dossier.menu} onChange={(event) => update('menu', event.target.value)} rows={10} placeholder={'ENTRÉE\n\nPLAT ET GARNITURES\n\nFROMAGE\n\nDESSERT'} />
+          </div>
+          <TextArea label="Consigne ou mission donnée aux apprentis" value={dossier.mission} onChange={(v) => update('mission', v)} rows={4} placeholder="Une consigne courte suffit." />
+        </div>
 
-        {(printMode || activeTab === 'situation') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 2" title="Situation professionnelle" intro="La situation donne du sens au thème et guide ce qui sera recherché, préparé, réalisé et évalué." />
-          <TextArea label="Situation issue du plan de formation" value={dossier.situation} onChange={(v) => update('situation', v)} rows={7} />
-          <TextArea label="Objectifs de la période d'alternance" value={dossier.objectives} onChange={(v) => update('objectives', v)} />
-          <TextArea label="Mission confiée pendant le TP" value={dossier.mission} onChange={(v) => update('mission', v)} />
-          <TextArea label="Traces ou productions attendues" value={dossier.expectedTraces} onChange={(v) => update('expectedTraces', v)} rows={3} />
-          <div className="two-columns"><TextArea label="Questions de recherche" value={dossier.researchQuestions} onChange={(v) => update('researchQuestions', v)} /><TextArea label="Sources personnes ou documents" value={dossier.sources} onChange={(v) => update('sources', v)} /></div>
-        </div>}
-
-        {(printMode || activeTab === 'techniques') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 3" title="Techniques professionnelles" intro={`Sélectionner les techniques à mobiliser pour la pratique en ${dossier.formation === 'cuisine' ? 'cuisine' : 'service'}.`} />
+        <div className={`section-content ${activeTab === 'techniques' ? 'is-active' : ''}`}>
+          <SectionHeading eyebrow="2 · Techniques" title="Choisir les techniques professionnelles" intro={`Cocher uniquement les techniques réellement travaillées pendant le TP ${dossier.formation === 'cuisine' ? 'de cuisine' : 'de service'}.`} />
           <div className="technique-toolbar"><label className="search-field"><Search size={18} /><input value={techniqueSearch} onChange={(event) => setTechniqueSearch(event.target.value)} placeholder="Rechercher une technique" /></label><span>{dossier.selectedTechniques.length} sélectionnée(s)</span></div>
           <div className="technique-layout"><div className="technique-catalogue">
             {groups.map((group) => <details key={group.category} open={!techniqueSearch}><summary>{group.category}<span>{group.items.length}</span></summary><div className="technique-options">
-              {group.items.map((item) => { const selected = dossier.selectedTechniques.some((entry) => entry.name === item); return <button key={item} className={selected ? 'technique-option selected' : 'technique-option'} onClick={() => toggleTechnique(item)}><span className="check-box">{selected && <Check size={14} />}</span>{item}</button>; })}
+              {group.items.map((item) => { const selected = dossier.selectedTechniques.some((entry) => entry.name === item); return <button key={item} type="button" className={selected ? 'technique-option selected' : 'technique-option'} onClick={() => toggleTechnique(item)}><span className="check-box">{selected && <Check size={14} />}</span>{item}</button>; })}
             </div></details>)}
-          </div><aside className="selected-panel"><h3><ListChecks size={19} /> Sélection de la séance</h3>
-            {dossier.selectedTechniques.length === 0 ? <p className="empty-state">Aucune technique sélectionnée.</p> : dossier.selectedTechniques.map((item) => <div className="selected-technique" key={item.name}><strong>{item.name}</strong><div><select value={item.status} onChange={(event) => updateTechniqueStatus(item.name, event.target.value as TechniqueStatus)}><option>À observer en entreprise</option><option>À préparer</option><option>À réaliser pendant le TP</option><option>À consolider</option></select><button aria-label={`Retirer ${item.name}`} onClick={() => toggleTechnique(item.name)}><Trash2 size={15} /></button></div></div>)}
+          </div><aside className="selected-panel"><h3><ListChecks size={19} /> Techniques retenues</h3>
+            {dossier.selectedTechniques.length === 0 ? <p className="empty-state">Cliquez sur les techniques à intégrer au dossier.</p> : dossier.selectedTechniques.map((item) => <div className="selected-technique simple" key={item.name}><strong>{item.name}</strong><button type="button" aria-label={`Retirer ${item.name}`} onClick={() => toggleTechnique(item.name)}><Trash2 size={15} /></button></div>)}
           </aside></div>
-          <TextArea label="Points techniques à préparer et critères de réussite" value={dossier.pointsToPrepare} onChange={(v) => update('pointsToPrepare', v)} rows={6} />
-          <TextArea label="Contraintes communes de la séance" value={dossier.constraints} onChange={(v) => update('constraints', v)} rows={4} />
-          <p className="source-note">Liste structurée à partir de l'annexe VIII du référentiel officiel. <a href={techniqueSources[dossier.formation]} target="_blank" rel="noreferrer">Consulter le référentiel</a></p>
-        </div>}
+          <TextArea label="Points à préparer et critères de réussite" value={dossier.pointsToPrepare} onChange={(v) => update('pointsToPrepare', v)} rows={6} placeholder="Gestes attendus, vigilance, résultat recherché…" />
+          <p className="source-note">Techniques issues du référentiel officiel. <a href={techniqueSources[dossier.formation]} target="_blank" rel="noreferrer">Consulter le référentiel</a></p>
+        </div>
 
-        {(printMode || activeTab === 'fiches') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 4" title="Fiches techniques" intro="Créer une fiche par production. Les fiches peuvent être ajoutées ou supprimées selon la séance." />
+        <div className={`section-content ${activeTab === 'fiches' ? 'is-active' : ''}`}>
+          <SectionHeading eyebrow="3 · Fiches techniques" title="Préparer les productions" intro="Trois fiches sont proposées par défaut. Ne renseigner que les rubriques utiles au TP." />
           <div className="production-list">{dossier.productions.map((production, index) => <article className="production-card" key={production.id}>
-            <header><span>Fiche technique {index + 1}</span>{dossier.productions.length > 1 && <button aria-label="Supprimer cette fiche" onClick={() => update('productions', dossier.productions.filter((item) => item.id !== production.id))}><Trash2 size={17} /></button>}</header>
-            <div className="field-grid compact-grid"><Field wide label="Intitulé de la production" value={production.title} onChange={(v) => updateProduction(production.id, 'title', v)} /><Field label="Nombre de couverts ou portions" value={production.covers} onChange={(v) => updateProduction(production.id, 'covers', v)} /><Field label="Descriptif retenu" value={production.description} onChange={(v) => updateProduction(production.id, 'description', v)} /></div>
-            <TextArea label="Denrées unités et quantités" value={production.ingredients} onChange={(v) => updateProduction(production.id, 'ingredients', v)} rows={4} />
-            <TextArea label="Progression technique étapes et contrôles" value={production.progression} onChange={(v) => updateProduction(production.id, 'progression', v)} rows={5} />
-            <div className="two-columns"><TextArea label="Matériel spécifique" value={production.material} onChange={(v) => updateProduction(production.id, 'material', v)} rows={3} /><TextArea label="Présentation dressage ou mise en place" value={production.presentation} onChange={(v) => updateProduction(production.id, 'presentation', v)} rows={3} /></div>
-            <TextArea label="Point critique d'hygiène" value={production.hygiene} onChange={(v) => updateProduction(production.id, 'hygiene', v)} rows={3} />
+            <header><span>Fiche technique {index + 1}</span>{dossier.productions.length > 1 && <button type="button" aria-label="Supprimer cette fiche" onClick={() => update('productions', dossier.productions.filter((item) => item.id !== production.id))}><Trash2 size={17} /></button>}</header>
+            <div className="field-grid compact-grid"><Field wide label="Intitulé de la production" value={production.title} onChange={(v) => updateProduction(production.id, 'title', v)} /><Field wide label="Nombre de couverts ou portions" value={production.covers} onChange={(v) => updateProduction(production.id, 'covers', v)} /></div>
+            <div className="technical-sheet-grid"><TextArea label="Denrées · unités · quantités" value={production.ingredients} onChange={(v) => updateProduction(production.id, 'ingredients', v)} rows={8} /><TextArea label="Progression technique · étapes · contrôles" value={production.progression} onChange={(v) => updateProduction(production.id, 'progression', v)} rows={8} /></div>
+            <TextArea label="Point critique d'hygiène ou de sécurité" value={production.hygiene} onChange={(v) => updateProduction(production.id, 'hygiene', v)} rows={3} />
           </article>)}</div>
-          <button className="secondary-button" onClick={() => update('productions', [...dossier.productions, emptyProduction(dossier.productions.length + 1)])}><Plus size={17} /> Ajouter une fiche technique</button>
-        </div>}
+          <button className="secondary-button" type="button" onClick={() => update('productions', [...dossier.productions, emptyProduction(dossier.productions.length + 1)])}><Plus size={17} /> Ajouter une fiche technique</button>
+        </div>
 
-        {(printMode || activeTab === 'hygiene') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 5" title="Points critiques d'hygiène" intro="Repérer les dangers, choisir les mesures de maîtrise et préciser les contrôles attendus." />
-          <div className="guidance-grid"><div><ClipboardCheck /><strong>Dangers</strong><span>Biologiques chimiques physiques allergènes</span></div><div><BookOpenCheck /><strong>Maîtrise</strong><span>Organisation températures nettoyage séparation</span></div><div><FileText /><strong>Preuves</strong><span>Traçabilité étiquetage relevés validation</span></div></div>
-          <TextArea label="Analyse des étapes produits dangers mesures et contrôles" value={dossier.hygieneAnalysis} onChange={(v) => update('hygieneAnalysis', v)} rows={13} />
-          <TextArea label="Point critique prioritaire retenu" value={dossier.priorityControl} onChange={(v) => update('priorityControl', v)} rows={4} />
-        </div>}
+        <div className={`section-content wide-section ${activeTab === 'organisation' ? 'is-active' : ''}`}>
+          <SectionHeading eyebrow="4 · Ordonnancement" title="Organiser le travail" intro="Un ordonnancement simple, sans horaires : l'ordre des tâches, la répartition chef/commis et les contrôles." />
+          <div className="schedule-table"><div className="schedule-head"><span>Ordre</span><span>Chef / commis</span><span>Production ou tâche</span><span>Point de contrôle</span><span /></div>
+            {dossier.schedule.map((row) => <div className="schedule-row" key={row.id}><input aria-label="Ordre" value={row.step} onChange={(event) => updateSchedule(row.id, 'step', event.target.value)} /><input aria-label="Chef ou commis" value={row.responsible} onChange={(event) => updateSchedule(row.id, 'responsible', event.target.value)} /><textarea aria-label="Production ou tâche" value={row.action} onChange={(event) => updateSchedule(row.id, 'action', event.target.value)} rows={2} /><textarea aria-label="Point de contrôle" value={row.control} onChange={(event) => updateSchedule(row.id, 'control', event.target.value)} rows={2} /><button type="button" aria-label="Supprimer cette étape" onClick={() => update('schedule', dossier.schedule.filter((item) => item.id !== row.id))}><Trash2 size={16} /></button></div>)}
+          </div><button className="secondary-button" type="button" onClick={() => update('schedule', [...dossier.schedule, emptyScheduleRow(dossier.schedule.length + 1)])}><Plus size={17} /> Ajouter une étape</button>
+        </div>
 
-        {(printMode || activeTab === 'organisation') && <div className="section-content wide-section">
-          <SectionHeading eyebrow="Partie 6" title="Ordonnancement par étapes" intro="Organiser la progression du travail. Chaque ligne correspond à une étape observable et à son contrôle." />
-          <div className="schedule-table"><div className="schedule-head"><span>Étape</span><span>Responsable ou poste</span><span>Action attendue</span><span>Contrôle validation coordination</span><span /></div>
-            {dossier.schedule.map((row) => <div className="schedule-row" key={row.id}><input aria-label="Étape" value={row.step} onChange={(event) => updateSchedule(row.id, 'step', event.target.value)} /><input aria-label="Responsable ou poste" value={row.responsible} onChange={(event) => updateSchedule(row.id, 'responsible', event.target.value)} /><textarea aria-label="Action attendue" value={row.action} onChange={(event) => updateSchedule(row.id, 'action', event.target.value)} rows={2} /><textarea aria-label="Contrôle et validation" value={row.control} onChange={(event) => updateSchedule(row.id, 'control', event.target.value)} rows={2} /><button aria-label="Supprimer cette étape" onClick={() => update('schedule', dossier.schedule.filter((item) => item.id !== row.id))}><Trash2 size={16} /></button></div>)}
-          </div><button className="secondary-button" onClick={() => update('schedule', [...dossier.schedule, emptyScheduleRow(dossier.schedule.length + 1)])}><Plus size={17} /> Ajouter une étape</button>
-        </div>}
-
-        {(printMode || activeTab === 'croquis') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 7" title="Croquis et présentation" intro="Décrire ou dessiner le résultat attendu avant la réalisation." />
-          <div className="sketch-zone" aria-label="Zone de croquis imprimable"><Sparkles size={28} /><span>Zone libre pour croquis schéma plan de salle ou légende</span></div>
-          <TextArea label="Légende emplacement des éléments ou choix de présentation" value={dossier.sketches} onChange={(v) => update('sketches', v)} rows={7} />
-        </div>}
-
-        {(printMode || activeTab === 'bilan') && <div className="section-content">
-          <SectionHeading eyebrow="Partie 8" title="Bilan réflexif" intro="Identifier les réussites, les difficultés et la prochaine étape de progression." />
-          <div className="reflection-grid"><TextArea label="J'ai réussi" value={dossier.success} onChange={(v) => update('success', v)} rows={6} /><TextArea label="Je n'ai pas encore réussi" value={dossier.difficulty} onChange={(v) => update('difficulty', v)} rows={6} /><TextArea label="Mon prochain objectif" value={dossier.nextGoal} onChange={(v) => update('nextGoal', v)} rows={6} /><TextArea label="Retour du formateur ou du tuteur" value={dossier.tutorFeedback} onChange={(v) => update('tutorFeedback', v)} rows={6} /></div>
-          <div className="completion-card"><GraduationCap /><div><strong>Dossier prêt à être transmis</strong><span>Vérifier la situation, les techniques, les fiches et l'ordonnancement avant impression.</span></div><button className="primary-button" onClick={() => window.print()}><Printer size={17} /> Imprimer le dossier</button></div>
-        </div>}
+        <div className={`section-content ${activeTab === 'bilan' ? 'is-active' : ''}`}>
+          <SectionHeading eyebrow="5 · Finaliser" title="Hygiène, présentation et bilan" intro="Les dernières pages du dossier à remettre aux apprentis." />
+          <div className="final-block">
+            <h3><ClipboardCheck size={20} /> Points critiques d'hygiène</h3>
+            <TextArea label="Quels sont les dangers et les mesures de maîtrise à prévoir ?" value={dossier.hygieneAnalysis} onChange={(v) => update('hygieneAnalysis', v)} rows={6} />
+            <TextArea label="Quel point critique devra être contrôlé en priorité ?" value={dossier.priorityControl} onChange={(v) => update('priorityControl', v)} rows={3} />
+          </div>
+          <div className="final-block">
+            <h3><Sparkles size={20} /> Croquis de la présentation</h3>
+            <div className="sketch-zone" aria-label="Zone de croquis imprimable"><span>Zone libre pour le croquis de présentation</span></div>
+          </div>
+          <div className="final-block">
+            <h3><GraduationCap size={20} /> Bilan réflexif de l'apprenti</h3>
+            <div className="reflection-grid three"><TextArea label="J'ai réussi" value={dossier.success} onChange={(v) => update('success', v)} rows={5} /><TextArea label="Je dois encore travailler" value={dossier.difficulty} onChange={(v) => update('difficulty', v)} rows={5} /><TextArea label="Mon prochain objectif" value={dossier.nextGoal} onChange={(v) => update('nextGoal', v)} rows={5} /></div>
+          </div>
+          <div className="completion-card"><GraduationCap /><div><strong>Le dossier complet est prêt</strong><span>L'export regroupe maintenant les cinq parties, quelle que soit la partie affichée.</span></div><button className="primary-button" type="button" onClick={() => window.print()}><Printer size={17} /> Exporter tout le dossier</button></div>
+        </div>
       </section>
     </div>
   </main>;
