@@ -36,6 +36,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Construire le site
         run: pnpm build
+      - name: Ajuster les ressources pour GitHub Pages
+        run: |
+          REPOSITORY_NAME="${GITHUB_REPOSITORY#*/}"
+          if [ -d "dist/client/$REPOSITORY_NAME/_next" ]; then
+            mv "dist/client/$REPOSITORY_NAME/_next" dist/client/_next
+            rmdir "dist/client/$REPOSITORY_NAME"
+          fi
       - name: Préparer GitHub Pages
         uses: actions/configure-pages@v5
       - name: Déposer le site construit
