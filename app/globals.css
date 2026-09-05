@@ -47,11 +47,11 @@ button { cursor: pointer; }
 .welcome-copy p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.6; }
 .formation-select, .field { display: grid; gap: 8px; }
 .formation-select > span, .field > span { color: var(--wine-dark); font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
-.formation-select select, .field input, .field textarea, .document-topline select, .selected-technique select, .search-field input, .schedule-row input, .schedule-row textarea {
+.formation-select select, .field input, .field textarea, .field select, .document-topline select, .selected-technique select, .search-field input, .schedule-row input, .schedule-row textarea {
   width: 100%; border: 1px solid var(--line); border-radius: 12px; outline: none; color: var(--ink); background: #fff;
 }
 .formation-select select { min-height: 54px; padding: 0 15px; }
-.formation-select select:focus, .field input:focus, .field textarea:focus, .search-field:focus-within, .schedule-row input:focus, .schedule-row textarea:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(143,47,42,.1); }
+.formation-select select:focus, .field input:focus, .field textarea:focus, .field select:focus, .search-field:focus-within, .schedule-row input:focus, .schedule-row textarea:focus { border-color: var(--wine); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wine) 12%, transparent); }
 .primary-button, .secondary-button, .ghost-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 11px; font-weight: 800;
 }
@@ -62,6 +62,12 @@ button { cursor: pointer; }
 .privacy-note { margin: 18px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 
 .app-shell { min-height: 100vh; }
+.app-shell.service-mode {
+  --wine: #2e7180;
+  --wine-dark: #1b4d59;
+  --cream: #eaf3f4;
+  --cream-deep: #b7d3d8;
+}
 .app-header {
   position: sticky; z-index: 20; top: 0; min-height: 78px; padding: 12px 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px;
   border-bottom: 1px solid var(--line); background: rgba(255,253,248,.94); backdrop-filter: blur(12px);
@@ -107,7 +113,7 @@ button { cursor: pointer; }
 .essential-grid { margin-bottom: 6px; }
 .field-wide { grid-column: 1 / -1; }
 .field { margin-bottom: 21px; }
-.field input, .field textarea { padding: 12px 14px; line-height: 1.5; resize: vertical; }
+.field input, .field textarea, .field select { padding: 12px 14px; line-height: 1.5; resize: vertical; }
 .field input { min-height: 45px; }
 .two-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .menu-editor { grid-column: 1 / -1; margin-bottom: 22px; overflow: hidden; border: 1px solid var(--cream-deep); border-radius: 18px; background: #fffaf0; }
@@ -117,6 +123,10 @@ button { cursor: pointer; }
 .menu-editor-title span { font-size: 11px; opacity: .85; }
 .menu-editor textarea { width: 100%; padding: 20px; border: 0; outline: 0; resize: vertical; color: var(--ink); background: transparent; line-height: 1.65; }
 .menu-editor textarea:focus { box-shadow: inset 0 0 0 3px rgba(143,47,42,.10); }
+
+.service-context-card { margin: 2px 0 22px; padding: 20px; border: 1px solid var(--cream-deep); border-radius: 17px; background: #f8fbfb; }
+.service-context-card > h3 { margin: 0 0 18px; display: flex; align-items: center; gap: 9px; color: var(--wine-dark); font: 700 21px Georgia, serif; }
+.service-context-card .field:last-child { margin-bottom: 0; }
 
 .technique-toolbar { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 12px; }
 .search-field { flex: 1; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: white; }
@@ -145,6 +155,27 @@ button { cursor: pointer; }
 .source-note { color: var(--muted); font-size: 12px; }
 .source-note a { color: var(--wine); font-weight: 800; }
 
+.empty-service-state { min-height: 210px; padding: 30px; display: grid; place-items: center; align-content: center; gap: 9px; border: 2px dashed var(--cream-deep); border-radius: 18px; color: var(--muted); text-align: center; background: #f8fbfb; }
+.empty-service-state svg { width: 34px; height: 34px; color: var(--wine); }
+.empty-service-state strong { color: var(--wine-dark); font: 700 22px Georgia, serif; }
+.empty-service-state span { font-size: 13px; }
+.service-course-list, .sales-course-list { display: grid; gap: 18px; }
+.service-course-card, .sales-card, .cocktail-card { overflow: hidden; border: 1px solid var(--cream-deep); border-radius: 18px; background: #fff; }
+.service-course-card > header, .sales-card > header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: #fff; background: var(--wine); }
+.service-course-card > header > span, .sales-card > header > span { width: 29px; height: 29px; display: grid; place-items: center; flex: 0 0 29px; border-radius: 50%; color: var(--wine-dark); background: #fff; font-size: 12px; font-weight: 900; }
+.service-course-card h3, .sales-card h3 { margin: 0; font: 700 19px/1.3 Georgia, serif; }
+.service-course-card > .field, .sales-card > .field, .sales-card > .field-grid { margin: 18px; }
+.service-course-card > .field + .field, .sales-card > .field + .field { margin-top: 0; }
+.sales-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.wine-fields { grid-template-columns: 1fr 1fr; }
+.wine-fields .field { margin-bottom: 0; }
+.vineyard-card { position: sticky; top: 104px; overflow: hidden; border: 1px solid var(--cream-deep); border-radius: 18px; background: #f8fbfb; }
+.vineyard-card > div { padding: 16px; display: flex; align-items: center; gap: 9px; color: #fff; background: var(--wine); }
+.vineyard-card h3 { margin: 0; font: 700 18px Georgia, serif; }
+.vineyard-card img { width: 100%; max-height: 390px; display: block; object-fit: contain; background: white; }
+.vineyard-card p { margin: 15px 15px 7px; color: var(--ink); font-size: 13px; line-height: 1.45; }
+.vineyard-card small { display: block; margin: 0 15px 15px; color: var(--muted); font-size: 10px; }
+
 .production-list { display: grid; gap: 23px; margin-bottom: 18px; }
 .production-card { overflow: hidden; border: 1px solid var(--line); border-radius: 17px; background: white; }
 .production-card > header { padding: 13px 17px; display: flex; align-items: center; justify-content: space-between; color: #fff; background: var(--wine); font-weight: 800; }
@@ -155,6 +186,14 @@ button { cursor: pointer; }
 .technical-sheet-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 18px; }
 .technical-sheet-grid > .field-wide { grid-column: auto; }
 .secondary-button { margin-top: 5px; }
+
+.cocktail-card { margin-bottom: 26px; padding-bottom: 5px; }
+.cocktail-card > header { margin-bottom: 20px; padding: 16px 20px; display: flex; align-items: center; gap: 11px; color: #fff; background: var(--wine); }
+.cocktail-card > header span { display: block; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
+.cocktail-card > header h3 { margin: 2px 0 0; font: 700 24px Georgia, serif; }
+.cocktail-card > :not(header) { margin-left: 20px; margin-right: 20px; }
+.room-plan-block > p { margin: -4px 0 18px; color: var(--muted); line-height: 1.5; }
+.room-sketch small { margin-top: 6px; font-size: 12px; }
 
 .guidance-grid { margin-bottom: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .guidance-grid > div { min-height: 135px; padding: 18px; display: grid; align-content: start; gap: 8px; border-radius: 15px; color: #fff; background: var(--wine); }
@@ -182,12 +221,21 @@ button { cursor: pointer; }
 .completion-card > div { flex: 1; display: grid; gap: 3px; }
 .completion-card span { font-size: 12px; opacity: .9; }
 .completion-card .primary-button { background: #fff; color: var(--sage); }
+.service-mode .completion-card { background: var(--wine); }
+.service-mode .completion-card .primary-button { color: var(--wine-dark); }
+.role-reflections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.role-card { overflow: hidden; padding: 0 19px 3px; border: 1px solid var(--cream-deep); border-radius: 18px; background: #fff; }
+.role-card > header { margin: 0 -19px 19px; padding: 15px 19px; display: grid; gap: 3px; color: #fff; background: var(--wine); }
+.role-card > header span { font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
+.role-card > header strong { font: 700 19px Georgia, serif; }
 
 @media (max-width: 980px) {
   .workspace { grid-template-columns: 1fr; padding: 14px; }
   .sidebar { position: static; }
   .sidebar nav { grid-template-columns: repeat(5, minmax(0,1fr)); }
   .technique-layout { grid-template-columns: 1fr; }
+  .sales-layout { grid-template-columns: 1fr; }
+  .vineyard-card { position: static; }
   .selected-panel { position: static; }
 }
 @media (max-width: 720px) {
@@ -197,7 +245,7 @@ button { cursor: pointer; }
   .ghost-button { font-size: 0; }
   .ghost-button svg { width: 19px; height: 19px; }
   .sidebar nav { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .document-topline, .field-grid, .two-columns, .guidance-grid, .reflection-grid, .reflection-grid.three, .technical-sheet-grid { grid-template-columns: 1fr; }
+  .document-topline, .field-grid, .two-columns, .guidance-grid, .reflection-grid, .reflection-grid.three, .technical-sheet-grid, .role-reflections { grid-template-columns: 1fr; }
   .document-topline { display: grid; gap: 8px; }
   .document-topline label { display: grid; }
   .document-topline select { min-width: 0; }
@@ -219,7 +267,8 @@ button { cursor: pointer; }
   .schedule-table { overflow: visible; }
   .schedule-head, .schedule-row { min-width: 0; grid-template-columns: .55fr .9fr 1.45fr 1.35fr; }
   .schedule-head span:last-child, .schedule-row > button { display: none !important; }
-  .field input, .field textarea, .schedule-row input, .schedule-row textarea, .selected-technique select { border-color: #bbb; box-shadow: none; }
+  .field input, .field textarea, .field select, .schedule-row input, .schedule-row textarea, .selected-technique select { border-color: #bbb; box-shadow: none; }
   .section-heading h2 { font-size: 30px; }
-  .production-card, .guidance-grid, .sketch-zone, .schedule-table, .final-block { break-inside: avoid; }
+  .production-card, .guidance-grid, .sketch-zone, .schedule-table, .final-block, .service-course-card, .sales-card, .cocktail-card, .role-card, .vineyard-card { break-inside: avoid; }
+  .vineyard-card { position: static; }
 }
